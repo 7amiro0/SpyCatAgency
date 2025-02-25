@@ -1,0 +1,48 @@
+version: '3.9'
+
+services:
+  db:
+    image: postgres:15.1-alpine
+    container_name: "db"
+    restart: on-failure
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+      - DATABASE_HOST=${DB_HOST}
+      - DATABASE_PORT=${DB_PORT}
+    ports:
+      - "5432:5432"
+
+  migration:
+    container_name: "migrate"
+    restart: on-failure
+    image: migrate/migrate
+    command: [./goose, postgres, "host=${DB_HOST} password=${DB_PASSWORD} port=${DB_PORT} user=${DB_USER} dbname=${DB_NAME} sslmode=disable", up]
+    build:
+      context: ./../
+      dockerfile: ./build/Dockerfile_migrate
+    depends_on:
+      - db
+
+  app:
+    container_name: "app"
+    restart: always
+    build:
+      context: ./../
+      dockerfile: ./build/Dockerfile_app
+    depends_on:
+      - migration
+    ports:
+     - "8080:8080"
+    environment:
+      # server
+      - HOST
+      - PORT
+
+      # db
+      - DB_USER
+      - DB_PASSWORD
+      - DB_NAME
+      - DB_HOST
+      - DB_PORT
